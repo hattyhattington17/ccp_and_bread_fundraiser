@@ -6,7 +6,7 @@ import {
   UInt8,
   UInt64,
   PublicKey,
-} from 'o1js';
+} from "o1js";
 import {
   FungibleToken,
   VKeyMerkleMap,
@@ -19,9 +19,13 @@ import {
   TransferDynamicProofConfig,
   UpdatesDynamicProofConfig,
   generateDummyDynamicProof,
-} from 'fts-scaffolded-xt';
-import { Fundraiser } from './Fundraiser.js';
-import { TestPublicKey } from 'node_modules/o1js/dist/node/lib/mina/v1/local-blockchain.js';
+} from "fts-scaffolded-xt";
+import { Fundraiser, MerkleMap } from "./Fundraiser.js";
+import { TestPublicKey } from "node_modules/o1js/dist/node/lib/mina/v1/local-blockchain.js";
+
+// off chain state map
+// todo: in deployed application, this will need to be hosted somewhere
+let donorMap = new MerkleMap();
 
 const fee = UInt64.from(1e8);
 
@@ -71,7 +75,7 @@ async function sendTx(
   await tx.prove();
   tx.sign([sender.key, ...extra]);
   const { status } = await tx.send().then((v) => v.wait());
-  if (status !== 'included') throw new Error(`tx ${status}`);
+  if (status !== "included") throw new Error(`tx ${status}`);
 }
 
 // ---------- deploy & init ----------
@@ -81,8 +85,8 @@ await Fundraiser.compile();
 await sendTx(deployer, async () => {
   AccountUpdate.fundNewAccount(deployer, 2);
   await token.deploy({
-    symbol: 'BREAD',
-    src: 'https://github.com/o1-labs-XT/fungible-token-standard/blob/main/src/NewTokenStandard.ts',
+    symbol: "BREAD",
+    src: "https://github.com/o1-labs-XT/fungible-token-standard/blob/main/src/NewTokenStandard.ts",
   });
   await token.initialize(
     deployer,
@@ -123,7 +127,13 @@ const mint = (to: TestPublicKey, amt: UInt64) =>
 
 const donate = (from: TestPublicKey, amt: UInt64) =>
   sendTx(from, async () => {
-    await fundraiser.donate(amt, dummyPrf, dummyVk, vKeyMap);
+    donorMap = await fundraiser.donate(
+      amt,
+      donorMap,
+      dummyPrf,
+      dummyVk,
+      vKeyMap
+    );
     await token.approveAccountUpdateCustom(
       fundraiser.self,
       dummyPrf,
@@ -134,7 +144,7 @@ const donate = (from: TestPublicKey, amt: UInt64) =>
 
 const refund = (from: TestPublicKey) =>
   sendTx(from, async () => {
-    await fundraiser.refundDonation();
+    donorMap = await fundraiser.refundDonation(donorMap);
     await token.approveAccountUpdateCustom(
       fundraiser.self,
       dummyPrf,
@@ -143,25 +153,25 @@ const refund = (from: TestPublicKey) =>
     );
   });
 // ---------- script ----------
-await logBalances('initial');
+await logBalances("initial");
 await mint(katie, mintParams.maxAmount);
 await mint(matt, mintParams.maxAmount);
-await logBalances('minted');
+await logBalances("minted");
 
 await donate(katie, UInt64.from(10));
 await donate(matt, UInt64.from(50));
 await donate(matt, UInt64.from(30));
 // pass fundraiser target
 // await donate(katie, UInt64.from(500));
-await logBalances('deposited');
+await logBalances("deposited");
 
-console.log('simulate passing of deadline...');
+console.log("simulate passing of deadline...");
 local.setGlobalSlot(local.currentSlot().add(100000000));
 
 // refund donations
 await refund(katie);
 await refund(matt);
-await logBalances('refunded');
+await logBalances("refunded");
 
 // donate again after deadline
 await donate(katie, UInt64.from(100));
@@ -177,21 +187,24 @@ await sendTx(beneficiary, async () => {
     vKeyMap
   );
 });
-await logBalances('withdrawn');
+await logBalances("withdrawn");
 
 async function logBalances(tag: string) {
   const actors: { name: string; key: PublicKey }[] = [
-    { name: 'Deployer', key: deployer },
-    { name: 'Owner', key: beneficiary },
-    { name: 'katie', key: katie },
-    { name: 'matt', key: matt },
-    { name: 'gato', key: gato },
-    { name: 'Escrow', key: fundraiserKeys.publicKey },
+    { name: "Deployer", key: deployer },
+    { name: "Owner", key: beneficiary },
+    { name: "katie", key: katie },
+    { name: "matt", key: matt },
+    { name: "gato", key: gato },
+    { name: "Escrow", key: fundraiserKeys.publicKey },
   ];
   console.log(`\n--- Balances (${tag}) ---`);
   for (const { name, key } of actors) {
-    const bal = (await token.getBalanceOf('key' in key ? key : key)).toBigInt();
+    const bal = (await token.getBalanceOf("key" in key ? key : key)).toBigInt();
     console.log(`${name}:`, bal.toString());
   }
-  console.log('--------------------------\n');
+
+  console.log("\nDonor map root:", donorMap.root.toString());
+
+  console.log("==========================\n");
 }
