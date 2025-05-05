@@ -166,10 +166,6 @@ export class Fundraiser extends SmartContract {
 
     // check that the on chain commitment is consistent with the root of the map that was supplied
     const stateCommitment = this.stateCommitment.getAndRequireEquals();
-    Provable.asProver(() => {
-      console.log("on‑chain root :", stateCommitment.toString());
-      console.log("supplied root :", state.root.toString());
-    });
     stateCommitment.assertEquals(
       state.root,
       "Off-chain state Merkle Map is out of sync! Please vergify no changes have been made and try again."
@@ -185,7 +181,7 @@ export class Fundraiser extends SmartContract {
 
     // update the off chain state map
     state = state.clone();
-    state.insert(senderHash, senderDonationBalance);
+    state.set(senderHash, senderDonationBalance);
 
     // update the on chain commitment with the newly calculated root
     const updatedStateCommitment = state.root;
@@ -239,7 +235,7 @@ export class Fundraiser extends SmartContract {
 
     // clear the sender's balance from off chain state
     state = state.clone();
-    state.insert(senderHash, Field(0));
+    state.update(senderHash, Field(0));
 
     // update the on chain commitment with the newly calculated root
     const updatedStateCommitment = state.root;

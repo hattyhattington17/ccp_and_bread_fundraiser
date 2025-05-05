@@ -6,6 +6,8 @@ import {
   UInt8,
   UInt64,
   PublicKey,
+  Poseidon,
+  Field,
 } from "o1js";
 import {
   FungibleToken,
@@ -22,6 +24,9 @@ import {
 } from "fts-scaffolded-xt";
 import { Fundraiser, MerkleMap } from "./Fundraiser.js";
 import { TestPublicKey } from "node_modules/o1js/dist/node/lib/mina/v1/local-blockchain.js";
+
+// controls whether the runner should execute a successful fundraiser or one where the target isn't met
+const shouldSucceed = false;
 
 // off chain state map
 // todo: in deployed application, this will need to be hosted somewhere
@@ -125,33 +130,44 @@ const mint = (to: TestPublicKey, amt: UInt64) =>
     await token.mint(to, amt, dummyPrf, dummyVk, vKeyMap);
   });
 
-const donate = (from: TestPublicKey, amt: UInt64) =>
+const donate = (from: Mina.TestPublicKey, amt: UInt64) =>
+  // send the transaction first
   sendTx(from, async () => {
-    donorMap = await fundraiser.donate(
-      amt,
-      donorMap,
-      dummyPrf,
-      dummyVk,
-      vKeyMap
-    );
+    await fundraiser.donate(amt, donorMap, dummyPrf, dummyVk, vKeyMap);
     await token.approveAccountUpdateCustom(
       fundraiser.self,
       dummyPrf,
       dummyVk,
       vKeyMap
     );
-  });
+  })
+    // once it is included on‑chain, mirror the change locally
+    .then(() => {
+      const senderHash = Poseidon.hash(from.toFields());
+
+      const currentBalance = donorMap.getOption(senderHash).orElse(0n);
+      donorMap = donorMap.clone();
+      donorMap.set(senderHash, currentBalance.add(amt.value)); // keep roots in sync
+    });
 
 const refund = (from: TestPublicKey) =>
   sendTx(from, async () => {
-    donorMap = await fundraiser.refundDonation(donorMap);
+    await fundraiser.refundDonation(donorMap);
     await token.approveAccountUpdateCustom(
       fundraiser.self,
       dummyPrf,
       dummyVk,
       vKeyMap
     );
-  });
+  })
+    // once it is included on‑chain, mirror the change locally
+    .then(() => {
+      const senderHash = Poseidon.hash(from.toFields());
+
+      donorMap = donorMap.clone();
+      donorMap.update(senderHash, Field(0)); // keep roots in sync
+    });
+
 // ---------- script ----------
 await logBalances("initial");
 await mint(katie, mintParams.maxAmount);
@@ -161,33 +177,35 @@ await logBalances("minted");
 await donate(katie, UInt64.from(10));
 await donate(matt, UInt64.from(50));
 await donate(matt, UInt64.from(30));
-// pass fundraiser target
-// await donate(katie, UInt64.from(500));
-await logBalances("deposited");
 
-console.log("simulate passing of deadline...");
-local.setGlobalSlot(local.currentSlot().add(100000000));
+if (shouldSucceed) {
+  // pass fundraiser target
+  await donate(katie, UInt64.from(500));
+  await logBalances("deposited");
+  console.log("simulate passing of deadline...");
+  local.setGlobalSlot(local.currentSlot().add(100000000));
 
-// refund donations
-await refund(katie);
-await refund(matt);
-await logBalances("refunded");
+  // owner withdraws full amount
+  await sendTx(beneficiary, async () => {
+    AccountUpdate.fundNewAccount(beneficiary, 1);
+    await fundraiser.claimFund();
+    await token.approveAccountUpdateCustom(
+      fundraiser.self,
+      dummyPrf,
+      dummyVk,
+      vKeyMap
+    );
+  });
+  await logBalances("withdrawn");
+} else {
+  console.log("simulate passing of deadline...");
+  local.setGlobalSlot(local.currentSlot().add(100000000));
 
-// donate again after deadline
-await donate(katie, UInt64.from(100));
-
-// owner withdraws full amount
-await sendTx(beneficiary, async () => {
-  AccountUpdate.fundNewAccount(beneficiary, 1);
-  await fundraiser.claimFund();
-  await token.approveAccountUpdateCustom(
-    fundraiser.self,
-    dummyPrf,
-    dummyVk,
-    vKeyMap
-  );
-});
-await logBalances("withdrawn");
+  // refund donations
+  await refund(katie);
+  await refund(matt);
+  await logBalances("refunded");
+}
 
 async function logBalances(tag: string) {
   const actors: { name: string; key: PublicKey }[] = [
