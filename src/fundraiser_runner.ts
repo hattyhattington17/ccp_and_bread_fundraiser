@@ -8,7 +8,7 @@ import {
   PublicKey,
   Poseidon,
   Field,
-} from "o1js";
+} from 'o1js';
 import {
   FungibleToken,
   VKeyMerkleMap,
@@ -21,9 +21,9 @@ import {
   TransferDynamicProofConfig,
   UpdatesDynamicProofConfig,
   generateDummyDynamicProof,
-} from "fts-scaffolded-xt";
-import { Fundraiser, MerkleMap } from "./Fundraiser.js";
-import { TestPublicKey } from "node_modules/o1js/dist/node/lib/mina/v1/local-blockchain.js";
+} from 'fts-scaffolded-xt';
+import { Fundraiser, MerkleMap } from './Fundraiser.js';
+import { TestPublicKey } from 'node_modules/o1js/dist/node/lib/mina/v1/local-blockchain.js';
 
 // controls whether the runner should execute a successful fundraiser or one where the target isn't met
 const shouldSucceed = false;
@@ -48,7 +48,7 @@ const fundraiserKeys = PrivateKey.randomKeypair();
 const token = new FungibleToken(tokenKeys.publicKey);
 const fundraiser = new Fundraiser(
   fundraiserKeys.publicKey,
-  token.deriveTokenId()
+  token.deriveTokenId(),
 );
 
 // ---------- token mint / burn params & dummy proof ----------
@@ -67,20 +67,20 @@ const vKeyMap = new VKeyMerkleMap();
 const dummyVk = await VerificationKey.dummy();
 const dummyPrf = await generateDummyDynamicProof(
   token.deriveTokenId(),
-  deployer
+  deployer,
 );
 
 // ---------- send‑tx helper (supports extra signers) ----------
 async function sendTx(
   sender: Mina.TestPublicKey,
   body: () => Promise<void>,
-  extra: PrivateKey[] = []
+  extra: PrivateKey[] = [],
 ) {
   const tx = await Mina.transaction({ sender, fee }, body);
   await tx.prove();
   tx.sign([sender.key, ...extra]);
   const { status } = await tx.send().then((v) => v.wait());
-  if (status !== "included") throw new Error(`tx ${status}`);
+  if (status !== 'included') throw new Error(`tx ${status}`);
 }
 
 // ---------- deploy & init ----------
@@ -90,8 +90,8 @@ await Fundraiser.compile();
 await sendTx(deployer, async () => {
   AccountUpdate.fundNewAccount(deployer, 2);
   await token.deploy({
-    symbol: "BREAD",
-    src: "https://github.com/o1-labs-XT/fungible-token-standard/blob/main/src/NewTokenStandard.ts",
+    symbol: 'BREAD',
+    src: 'https://github.com/o1-labs-XT/fungible-token-standard/blob/main/src/NewTokenStandard.ts',
   });
   await token.initialize(
     deployer,
@@ -103,7 +103,7 @@ await sendTx(deployer, async () => {
     MintDynamicProofConfig.default,
     BurnDynamicProofConfig.default,
     TransferDynamicProofConfig.default,
-    UpdatesDynamicProofConfig.default
+    UpdatesDynamicProofConfig.default,
   );
 }, [tokenKeys.privateKey]);
 
@@ -119,7 +119,7 @@ await sendTx(deployer, async () => {
     fundraiser.self,
     dummyPrf,
     dummyVk,
-    vKeyMap
+    vKeyMap,
   );
 }, [fundraiserKeys.privateKey, tokenKeys.privateKey]);
 
@@ -138,7 +138,7 @@ const donate = (from: Mina.TestPublicKey, amt: UInt64) =>
       fundraiser.self,
       dummyPrf,
       dummyVk,
-      vKeyMap
+      vKeyMap,
     );
   })
     // once it is included on‑chain, mirror the change locally
@@ -157,7 +157,7 @@ const refund = (from: TestPublicKey) =>
       fundraiser.self,
       dummyPrf,
       dummyVk,
-      vKeyMap
+      vKeyMap,
     );
   })
     // once it is included on‑chain, mirror the change locally
@@ -169,10 +169,10 @@ const refund = (from: TestPublicKey) =>
     });
 
 // ---------- script ----------
-await logBalances("initial");
+await logBalances('initial');
 await mint(katie, mintParams.maxAmount);
 await mint(matt, mintParams.maxAmount);
-await logBalances("minted");
+await logBalances('minted');
 
 await donate(katie, UInt64.from(10));
 await donate(matt, UInt64.from(50));
@@ -181,8 +181,8 @@ await donate(matt, UInt64.from(30));
 if (shouldSucceed) {
   // pass fundraiser target
   await donate(katie, UInt64.from(500));
-  await logBalances("deposited");
-  console.log("simulate passing of deadline...");
+  await logBalances('deposited');
+  console.log('simulate passing of deadline...');
   local.setGlobalSlot(local.currentSlot().add(100000000));
 
   // owner withdraws full amount
@@ -193,36 +193,36 @@ if (shouldSucceed) {
       fundraiser.self,
       dummyPrf,
       dummyVk,
-      vKeyMap
+      vKeyMap,
     );
   });
-  await logBalances("withdrawn");
+  await logBalances('withdrawn');
 } else {
-  console.log("simulate passing of deadline...");
+  console.log('simulate passing of deadline...');
   local.setGlobalSlot(local.currentSlot().add(100000000));
 
   // refund donations
   await refund(katie);
   await refund(matt);
-  await logBalances("refunded");
+  await logBalances('refunded');
 }
 
 async function logBalances(tag: string) {
   const actors: { name: string; key: PublicKey }[] = [
-    { name: "Deployer", key: deployer },
-    { name: "Owner", key: beneficiary },
-    { name: "katie", key: katie },
-    { name: "matt", key: matt },
-    { name: "gato", key: gato },
-    { name: "Escrow", key: fundraiserKeys.publicKey },
+    { name: 'Deployer', key: deployer },
+    { name: 'Owner', key: beneficiary },
+    { name: 'katie', key: katie },
+    { name: 'matt', key: matt },
+    { name: 'gato', key: gato },
+    { name: 'Escrow', key: fundraiserKeys.publicKey },
   ];
   console.log(`\n--- Balances (${tag}) ---`);
   for (const { name, key } of actors) {
-    const bal = (await token.getBalanceOf("key" in key ? key : key)).toBigInt();
+    const bal = (await token.getBalanceOf('key' in key ? key : key)).toBigInt();
     console.log(`${name}:`, bal.toString());
   }
 
-  console.log("\nDonor map root:", donorMap.root.toString());
+  console.log('\nDonor map root:', donorMap.root.toString());
 
-  console.log("==========================\n");
+  console.log('==========================\n');
 }
