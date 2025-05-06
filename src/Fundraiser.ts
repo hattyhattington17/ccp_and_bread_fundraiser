@@ -14,12 +14,12 @@ import {
   Provable,
   Experimental,
   Poseidon,
-} from "o1js";
+} from 'o1js';
 import {
   FungibleToken,
   VKeyMerkleMap,
   SideloadedProof,
-} from "fts-scaffolded-xt";
+} from 'fts-scaffolded-xt';
 
 /* ------------------------------------------------------------------ *
  * Off‑chain donor map
@@ -39,10 +39,10 @@ import {
 const { IndexedMerkleMap } = Experimental;
 const height = 4;
 export class MerkleMap extends IndexedMerkleMap(height) {}
-// Empty root for an IndexedMerkleMap of height 4, pre‑computed so it is available at compile‑time
+// Empty root for an IndexedMerkleMap of height 4, pre‑computed so it is available at compile‑time
 const EMPTY_INDEXED_TREE4_ROOT =
   Field(
-    848604956632493824118771612864662079593461935463909306433364671356729156850n
+    848604956632493824118771612864662079593461935463909306433364671356729156850n,
   );
 
 export class Fundraiser extends SmartContract {
@@ -74,10 +74,10 @@ export class Fundraiser extends SmartContract {
    * Deploys and initializes the contract.
    *
    * @param args Standard deploy arguments plus custom campaign parameters:
-   *  - `tokenAddress`  Token contract address accepted by this fundraiser.
-   *  - `beneficiary`   Who will receive the collected funds.
-   *  - `goal`          Number of tokens required for a successful campaign.
-   *  - `deadline`      Deadline (ms since epoch) after which donations stop and
+   *  - `tokenAddress`  Token contract address accepted by this fundraiser.
+   *  - `beneficiary`   Who will receive the collected funds.
+   *  - `goal`          Number of tokens required for a successful campaign.
+   *  - `deadline`      Deadline (ms since epoch) after which donations stop and
    *                    refunds become possible (if `goal` not met).
    */
   async deploy(
@@ -86,7 +86,7 @@ export class Fundraiser extends SmartContract {
       beneficiary: PublicKey;
       goal: UInt64;
       deadline: UInt64;
-    }
+    },
   ) {
     // call superclass deploy method to initialize contract state
     await super.deploy(args);
@@ -103,7 +103,7 @@ export class Fundraiser extends SmartContract {
     // assert deadline is in the future
     this.network.timestamp
       .getAndRequireEquals()
-      .assertLessThan(args.deadline, "deadline is in the past");
+      .assertLessThan(args.deadline, 'deadline is in the past');
     this.deadline.set(args.deadline);
 
     this.account.permissions.set({
@@ -118,13 +118,13 @@ export class Fundraiser extends SmartContract {
   /**
    * Donate `amount` tokens to the fundraiser
    *
-   * @param amount     Number of tokens to donate.
-   * @param state      Caller‑supplied Merkle map representing current off‑chain
+   * @param amount     Number of tokens to donate.
+   * @param state      Caller‑supplied Merkle map representing current off‑chain
    *                    donor balances. The method verifies its root matches the
    *                    on‑chain commitment before applying changes.
-   * @param _proof     Dummy proof - not used
-   * @param _vk        Dummy verification key - not used
-   * @param _vKeyMap   Dummy map - not used
+   * @param _proof     Dummy proof - not used
+   * @param _vk        Dummy verification key - not used
+   * @param _vKeyMap   Dummy map - not used
    * @returns Updated off‑chain Merkle map with the sender’s balance adjusted.
    */
   @method.returns(MerkleMap)
@@ -133,8 +133,9 @@ export class Fundraiser extends SmartContract {
     state: MerkleMap,
     _proof: SideloadedProof,
     _vk: VerificationKey,
-    _vKeyMap: VKeyMerkleMap
+    _vKeyMap: VKeyMerkleMap,
   ) {
+    Provable.log('running donate!');
     // Ensures token verification key is registered with contract to prevent compiler errors
     // but skips actual proof verification (handled by transferCustom call)
     _proof.verifyIf(_vk, Bool(false));
@@ -151,7 +152,7 @@ export class Fundraiser extends SmartContract {
       .getAndRequireEquals()
       .assertLessThan(
         this.deadline.getAndRequireEquals(),
-        "deadline has passed"
+        'deadline has passed',
       );
 
     // transfer token amount from sender to this contract
@@ -161,18 +162,16 @@ export class Fundraiser extends SmartContract {
       amount,
       _proof,
       _vk,
-      _vKeyMap
+      _vKeyMap,
     );
 
     // check that the on chain commitment is consistent with the root of the map that was supplied
     const stateCommitment = this.stateCommitment.getAndRequireEquals();
-    Provable.asProver(() => {
-      console.log("on‑chain root :", stateCommitment.toString());
-      console.log("supplied root :", state.root.toString());
-    });
+    Provable.log(stateCommitment);
+    Provable.log(state.root);
     stateCommitment.assertEquals(
       state.root,
-      "Off-chain state Merkle Map is out of sync! Please vergify no changes have been made and try again."
+      'Off-chain state Merkle Map is out of sync! Please verify no changes have been made and try again.',
     );
 
     // compute hash(sender) to use as map key and update donation balance
@@ -221,15 +220,15 @@ export class Fundraiser extends SmartContract {
       .getAndRequireEquals()
       .assertGreaterThan(
         this.deadline.getAndRequireEquals(),
-        "deadline not reached"
+        'deadline not reached',
       );
-    this.goal.getAndRequireEquals().assertGreaterThan(total, "goal was met");
+    this.goal.getAndRequireEquals().assertGreaterThan(total, 'goal was met');
 
     // check that the on chain commitment is consistent with the root of the map that was supplied
     const stateCommitment = this.stateCommitment.getAndRequireEquals();
     stateCommitment.assertEquals(
       state.root,
-      "Off-chain state Merkle Map is out of sync with on chain commitment! Please verify no changes have been made to the commitment since you loaded the map and try again."
+      'Off-chain state Merkle Map is out of sync with on chain commitment! Please verify no changes have been made to the commitment since you loaded the map and try again.',
     );
     // compute the hash of the sender's address
     const senderHash = Poseidon.hash(sender.toFields());
@@ -283,12 +282,12 @@ export class Fundraiser extends SmartContract {
       .getAndRequireEquals()
       .assertGreaterThan(
         this.deadline.getAndRequireEquals(),
-        `deadline not reached`
+        `deadline not reached`,
       );
-    this.goal.getAndRequireEquals().assertLessThan(total, "goal was not met");
+    this.goal.getAndRequireEquals().assertLessThan(total, 'goal was not met');
 
     // withdraw the total amount to the beneficiary
-    let receiverUpdate = this.send({ to: sender, amount: total });
+    const receiverUpdate = this.send({ to: sender, amount: total });
 
     // authorize contract to send tokens to the sender
     receiverUpdate.body.mayUseToken =
