@@ -168,7 +168,7 @@ export class Fundraiser extends SmartContract {
     const stateCommitment = this.stateCommitment.getAndRequireEquals();
     stateCommitment.assertEquals(
       state.root,
-      'Off-chain state Merkle Map is out of sync! Please vergify no changes have been made and try again.',
+      'Off-chain state Merkle Map is out of sync! Please verify no changes have been made and try again.',
     );
 
     // compute hash(sender) to use as map key and update donation balance
