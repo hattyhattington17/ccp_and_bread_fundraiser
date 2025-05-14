@@ -22,7 +22,7 @@ import {
   UpdatesDynamicProofConfig,
   generateDummyDynamicProof,
 } from 'fts-scaffolded-xt';
-import { Fundraiser, MerkleMap } from './Fundraiser.js';
+import { Fundraiser, MerkleMap } from '../ui/src/lib/contracts/Fundraiser.js';
 import { TestPublicKey } from 'node_modules/o1js/dist/node/lib/mina/v1/local-blockchain.js';
 
 // controls whether the runner should execute a successful fundraiser or one where the target isn't met

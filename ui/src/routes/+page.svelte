@@ -1,16 +1,38 @@
 
-<script>
+<script lang="ts">
   import character from '$lib/assets/kawaii/character.png'
   import arrowRightSmall from '$lib/assets/arrow-right-small.svg'
   import { onMount } from 'svelte'
   import { Mina, PublicKey } from 'o1js'
+	import type { MerkleMap, Fundraiser } from '$lib/contracts/Fundraiser.ts';
+  import { serializeIndexedMap, deserializeIndexedMerkleMap } from '@minatokens/storage'
+  const storage_provider_address = "http://localho.st:3000"
 
   export let amount = 40;
   export let goal = 100;
   export let raised = 20;
 
+  async function getDonorMap() {
+    return fetch(`${storage_provider_address}/`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+   })
+  }
+
+  async function writeDonorMap(m: MerkleMap) {
+    return fetch(`${storage_provider_address}/write`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(serializeIndexedMap(m)),
+    })
+  }
+  
   onMount(async () => {
-    const { Fundraiser } = await import('../../../src/Fundraiser.ts')
+
     // Update this to use the address (public key) for your zkApp account.
     // To try it out, you can try this address for an example "Add" smart contract that we've deployed to
     // Testnet B62qnTDEeYtBHBePA4yhCt4TCgDtA4L2CGvK7PirbJyX4pKH8bmtWe5 .
@@ -21,8 +43,13 @@
         'The following error is caused because the zkAppAddress has an empty string as the public key. Update the zkAppAddress with the public key for your zkApp account, or try this address for an example "Add" smart contract that we deployed to Testnet: B62qnTDEeYtBHBePA4yhCt4TCgDtA4L2CGvK7PirbJyX4pKH8bmtWe5',
       )
     }
+
+    let donorMap = await getDonorMap()
+    console.log(donorMap);
+
     //const zkApp = new Add(PublicKey.fromBase58(zkAppAddress))
   })
+
 </script>
 
 <svelte:head>
