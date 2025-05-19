@@ -38,13 +38,18 @@
 		"prettier-plugin-tailwindcss": "^0.6.11",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
-		"tailwindcss": "^4.0.0",
+		"tailwindcss": "^4.1.7",
 		"typescript": "^5.0.0",
 		"typescript-eslint": "^8.20.0",
 		"vite": "^6.2.6",
 		"vitest": "^3.0.0"
 	},
 	"dependencies": {
-		"o1js": "^2.*"
+		"@tsparticles/all": "^3.8.1",
+		"@tsparticles/configs": "^3.8.1",
+		"@tsparticles/engine": "^3.8.1",
+		"@tsparticles/shape-emoji": "^3.8.1",
+		"o1js": "^2.*",
+		"tsparticles": "^3.8.1"
 	}
 }

@@ -16,8 +16,8 @@
   "scripts": {
     "build": "tsc",
     "buildw": "tsc --watch",
-    "run": "node ui/build/contracts/fundraiser_runner.js",
-    "debug": "npx node --loader ts-node/esm ui/contracts/fundraiser_runner.ts",
+    "run": "node build/src/fundraiser_runner.js",
+    "debug": "npx node --loader ts-node/esm src/fundraiser_runner.ts",
     "prepare": "husky"
   },
   "devDependencies": {

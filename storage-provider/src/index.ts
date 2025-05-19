@@ -11,7 +11,7 @@ const { IndexedMerkleMap } = Experimental;
 const height = 4;
 export class MerkleMap extends IndexedMerkleMap(height) {}
 
-import fs, { write } from 'node:fs';
+import fs from 'node:fs';
 import type { JSONObject } from 'hono/utils/types';
 
 const app = new Hono();
