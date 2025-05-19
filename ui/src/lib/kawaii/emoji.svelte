@@ -4,10 +4,12 @@
 	import { loadEmojiShape } from '@tsparticles/shape-emoji';
 	import configs from '@tsparticles/configs';
 	import { onMount } from 'svelte';
+	import background from '$lib/assets/kawaii/cute-anime-pastel.jpg';
 
 	const config = configs.nyancat2;
 
 	onMount(() => {
+		console.log(background);
 		loadAll(tsParticles);
 		loadEmojiShape(tsParticles);
 
@@ -20,7 +22,7 @@
 						enable: true,
 						zIndex: -1
 					},
-					background: {},
+					background: { image: `url('${background}')`, repeat: 'no-repeat', position: 'center' },
 					particles: {
 						...config.particles,
 						shape: {
