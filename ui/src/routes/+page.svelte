@@ -1,12 +1,14 @@
 <script lang="ts">
 	import Emoji from '$lib/kawaii/emoji.svelte';
+	import Card from '$lib/kawaii/card.svelte';
+	import App from '$lib/kawaii/app.svelte';
+
 	import character from '$lib/assets/kawaii/character.png';
 	import arrowRightSmall from '$lib/assets/arrow-right-small.svg';
 	import { onMount, type Component } from 'svelte';
 	import { Mina, PublicKey } from 'o1js';
 	import type { MerkleMap, Fundraiser } from '$lib/contracts/Fundraiser.ts';
 	import { serializeIndexedMap, deserializeIndexedMerkleMap } from '@minatokens/storage';
-	import Card from '$lib/kawaii/card.svelte';
 	const storage_provider_address = 'http://localhost:3000';
 
 	export let amount = 40;
@@ -56,66 +58,37 @@
 </svelte:head>
 <div class="h-screen">
 	<main class="items-center justify-center">
-		<div>
-			<h1 class="text-center text-4xl font-bold">Mina Fungible Token Crowdfunding Example</h1>
-			<Emoji />
-			<div class="flex flex-col items-center">
-				<div class="w-full max-w-sm rounded-xl bg-pink-100/90 p-4 shadow-md">
-					<form>
-						<a href="https://minaprotocol.com/" target="_blank" rel="noopener noreferrer">
-							<img src={character} alt="Character portrait" width="72" height="72" priority />
-						</a>
-						<div>
-							<input
-								type="number"
-								class="rounded-sm"
-								placeholder="Amount to donate"
-								aria-label="Amount to donate"
-								on:input={(e) => (amount = e.target?.value)}
-								required
-							/>
-							<p>{goal - raised} to goal!</p>
-						</div>
-						<button
-							type="button"
-							class="focus:shadow-outline rounded bg-pink-500 px-4 py-2 font-bold text-white hover:bg-pink-700 focus:outline-none"
-						>
-							Donate
-						</button>
-						<button
-							type="button"
-							class="focus:shadow-outline rounded bg-gray-100 px-4 py-2 font-bold text-gray-800 hover:bg-gray-300 focus:outline-none"
-						>
-							Reclaim
-						</button>
-					</form>
-				</div>
-				<div class="grid grid-cols-4 gap-4 pt-4">
-					<Card
-						emoji="📚"
-						href="https://docs.minaprotocol.com/zkapps"
-						cardTitle="DOCS"
-						cardText="Explore zkApps and how to build one"
-					/>
-					<Card
-						emoji="🛠️"
-						href="https://docs.minaprotocol.com/zkapps/tutorials/hello-world"
-						cardTitle="TUTORIALS"
-						cardText="Learn with step-by-step o1js tutorials"
-					/>
-					<Card
-						emoji="💬"
-						href="https://discord.gg/minaprotocol"
-						cardTitle="QUESTIONS"
-						cardText="Ask questions on our Discord server"
-					/>
-					<Card
-						emoji="🚀"
-						href="https://docs.minaprotocol.com/zkapps/how-to-deploy-a-zkapp"
-						cardTitle="DEPLOY"
-						cardText="Deploy your zkApp to Testnet"
-					/>
-				</div>
+		<h1 class="text-center text-4xl font-bold">Mina Fungible Token Crowdfunding Example</h1>
+		<!-- Emoji particle effect -->
+		<Emoji />
+		<div class="flex flex-col items-center">
+			<!-- Main app card -->
+			<App {amount} {goal} {raised} />
+			<div class="grid grid-cols-4 gap-4 pt-4">
+				<Card
+					emoji="📚"
+					href="https://docs.minaprotocol.com/zkapps"
+					cardTitle="DOCS"
+					cardText="Explore zkApps and how to build one"
+				/>
+				<Card
+					emoji="🛠️"
+					href="https://docs.minaprotocol.com/zkapps/tutorials/hello-world"
+					cardTitle="TUTORIALS"
+					cardText="Learn with step-by-step o1js tutorials"
+				/>
+				<Card
+					emoji="💬"
+					href="https://discord.gg/minaprotocol"
+					cardTitle="QUESTIONS"
+					cardText="Ask questions on our Discord server"
+				/>
+				<Card
+					emoji="🚀"
+					href="https://docs.minaprotocol.com/zkapps/how-to-deploy-a-zkapp"
+					cardTitle="DEPLOY"
+					cardText="Deploy your zkApp to Testnet"
+				/>
 			</div>
 		</div>
 	</main>

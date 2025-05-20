@@ -5,10 +5,10 @@
 	export let emoji: string;
 </script>
 
-<div class="max-w-sm overflow-hidden rounded-xl bg-pink-100/90 shadow-lg">
+<div class="max-w-sm overflow-hidden rounded-xl bg-pink-100/90 shadow-lg hover:bg-pink-300/90">
 	<a {href} target="_blank" rel="noopener noreferrer">
 		<div class="px-6 py-4">
-			<span class="rounded bg-pink-200 text-5xl">{emoji}</span>
+			<span class="rounded-full bg-pink-200 text-5xl">{emoji}</span>
 			<div class="text-xl font-bold">
 				{cardTitle}
 			</div>

@@ -22,7 +22,12 @@
 						enable: true,
 						zIndex: -1
 					},
-					background: { image: `url('${background}')`, repeat: 'no-repeat', position: 'center' },
+					background: {
+						image: `url('${background}')`,
+						repeat: 'no-repeat',
+						position: 'center',
+						color: 'pink'
+					},
 					particles: {
 						...config.particles,
 						shape: {
