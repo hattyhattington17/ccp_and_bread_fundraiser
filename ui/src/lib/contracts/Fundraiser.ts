@@ -1,7 +1,8 @@
 import {
+	IndexedMerkleMapBase,
 	AccountUpdate,
 	Bool,
-	DeployArgs,
+	type DeployArgs,
 	method,
 	Permissions,
 	PublicKey,
@@ -32,9 +33,6 @@ import { FungibleToken, VKeyMerkleMap, SideloadedProof } from 'fts-scaffolded-xt
  *   stateCommitment, mutate it via donate()/refundDonation(), then
  *   replace their local copy with the map the method returns.
  * ------------------------------------------------------------------ */
-const { IndexedMerkleMap } = Experimental;
-const height = 4;
-export class MerkleMap extends IndexedMerkleMap(height) {}
 
 // Empty root for an IndexedMerkleMap of height 4, pre‑computed so it is available at compile‑time
 const EMPTY_INDEXED_TREE4_ROOT =
@@ -42,7 +40,7 @@ const EMPTY_INDEXED_TREE4_ROOT =
 
 export class Fundraiser extends SmartContract {
 	// Root of off chain state MerkleMap
-	@state(Field) stateCommitment = State<Field>();
+	@state(Field) stateCommitment: State<Field> = State<Field>();
 
 	// token address
 	@state(PublicKey)
@@ -121,10 +119,10 @@ export class Fundraiser extends SmartContract {
 	 * @param _vKeyMap Dummy map - not used
 	 * @returns Updated off‑chain Merkle map with the sender’s balance adjusted.
 	 */
-	@method.returns(MerkleMap)
+	@method.returns(IndexedMerkleMapBase)
 	async donate(
 		amount: UInt64,
-		state: MerkleMap,
+		state: IndexedMerkleMapBase,
 		_proof: SideloadedProof,
 		_vk: VerificationKey,
 		_vKeyMap: VKeyMerkleMap
@@ -185,8 +183,8 @@ export class Fundraiser extends SmartContract {
 	 * @param state Caller‑supplied Merkle map with donor balances.
 	 * @returns Updated Merkle map with the sender’s balance zeroed out.
 	 */
-	@method.returns(MerkleMap)
-	async refundDonation(state: MerkleMap) {
+	@method.returns(IndexedMerkleMapBase)
+	async refundDonation(state: IndexedMerkleMapBase) {
 		// Validate token ID and require sender signature.
 		const token = new FungibleToken(this.tokenAddress.getAndRequireEquals());
 		token.deriveTokenId().assertEquals(this.tokenId);
