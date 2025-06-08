@@ -7,6 +7,7 @@ export type KawaiiNavProps = {
   deployer: Mina.TestPublicKey;
   beneficiary: Mina.TestPublicKey;
   setSelected: (selected: Mina.TestPublicKey) => void;
+  personaMap: Map<Mina.TestPublicKey, string>;
 };
 
 export default function KawaiiNav({
@@ -14,26 +15,26 @@ export default function KawaiiNav({
   deployer,
   beneficiary,
   setSelected,
+  personaMap,
 }: KawaiiNavProps) {
   return (
-    <nav className="flex w-full items-center justify-between bg-pink-100/90 p-4 shadow-md">
-      <div>
-        <KawaiiButton type="button" onClick={() => setSelected(deployer)}>
-          Deployer
+    <nav className="w-full items-center justify-between bg-pink-100/90 p-4 shadow-md">
+      <KawaiiButton type="button" onClick={() => setSelected(deployer)}>
+        Deployer
+      </KawaiiButton>
+      <KawaiiButton type="button" onClick={() => setSelected(beneficiary)}>
+        Beneficiary
+      </KawaiiButton>
+      {donors.map((donor) => (
+        <KawaiiButton
+          // key={donor.toBase58()}
+          type="button"
+          onClick={() => setSelected(donor)}
+          key={donor.toBase58()}
+        >
+          {personaMap.get(donor)}
         </KawaiiButton>
-        <KawaiiButton type="button" onClick={() => setSelected(beneficiary)}>
-          Beneficiary
-        </KawaiiButton>
-        {donors.map((donor, idx) => (
-          <KawaiiButton
-            // key={donor.toBase58()}
-            type="button"
-            onClick={() => setSelected(donor)}
-          >
-            {`Donor ${idx + 1}`}
-          </KawaiiButton>
-        ))}
-      </div>
+      ))}
     </nav>
   );
 }

@@ -1,71 +1,97 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 
-import TodoListWorkerClient from './todoListWorkerClient';
-import PendingTodosQueue from '@/components/PendingTodosQueue';
-import ProvenTodosQueue from '@/components/ProvenTodosQueue';
-import { type TodoObjectRepr } from './todoListWorker';
+import FundraiserWorkerClient from './fundraiserWorkerClient';
 
 import App from '@/components/App';
 import KawaiiParticles from '@/components/KawaiiParticles';
 import KawaiiCard from '@/components/KawaiiCard';
 import KawaiiNav from '@/components/KawaiiNav';
+import { Mina, PrivateKey } from 'o1js';
+import { MerkleMap4 } from '@/lib/Fundraiser';
+
+const local = await Mina.LocalBlockchain({
+  proofsEnabled: false,
+  enforceTransactionLimits: false,
+});
+Mina.setActiveInstance(local);
+
+const [deployer, beneficiary, matt, katie, christian] = local.testAccounts;
+const tokenKeys = PrivateKey.randomKeypair();
+const fundraiserKeys = PrivateKey.randomKeypair();
+
+const personaMap = new Map([
+  [matt, 'matt'],
+  [katie, 'katie'],
+  [christian, 'christian'],
+  [deployer, 'deployer'],
+  [beneficiary, 'beneficiary'],
+]);
 
 export default function Home() {
-  const [todoListWorkerClient, setTodoListWorkerClient] =
-    useState<TodoListWorkerClient | null>(null);
+  const [fundraiserWorkerClient, setFundraiserWorkerClient] =
+    useState<FundraiserWorkerClient | null>(null);
+  const [selectedPersona, setSelectedPersona] =
+    useState<Mina.TestPublicKey>(deployer);
   const [hasBeenInitialized, setHasBeenInitialized] = useState(false);
   const [workerIsBusy, setWorkerIsBusy] = useState(false);
-  const [todoList, setTodoList] = useState<Record<
-    number,
-    TodoObjectRepr
-  > | null>(null);
-  const [newTodo, setNewTodo] = useState('');
-  const [newTodosQueue, setNewTodosQueue] = useState<string[]>([]);
-  const [pendingCompleteTodosQueue, setPendingCompleteTodosQueue] = useState<
-    number[]
-  >([]);
+  const [donorList, setDonorList] = useState<MerkleMap4 | null>(null);
+  const [amountToDonate, setAmountToDonate] = useState(0n);
   const [logMessages, setLogMessages] = useState<string[]>([]);
 
   const logContainerRef = useRef<HTMLDivElement>(null);
   const isInitializingRef = useRef(false);
 
-  const initializeWorker = async (worker: TodoListWorkerClient) => {
+  async function withBusyWorker<T>(job: () => Promise<T>): Promise<T> {
+    setWorkerIsBusy(true);
+    let ret: T;
+    try {
+      ret = await job();
+    } catch (error) {
+      setLogMessages((prev) => [...prev, `ERROR: ${error}`]);
+      throw error;
+    } finally {
+      setWorkerIsBusy(false);
+    }
+    return ret;
+  }
+
+  const initializeWorker = async (worker: FundraiserWorkerClient) => {
     setLogMessages((prev) => [...prev, 'Compiling zk program...']);
     const timeStart = Date.now();
-    await worker.init();
-    const todos = await worker.getTodos();
+    await worker.init(fundraiserKeys.publicKey, tokenKeys.publicKey, deployer);
+    const donors = await worker.getDonors();
     setLogMessages((prev) => [
       ...prev,
       `Zk program compiled in ${Date.now() - timeStart}ms`,
     ]);
-    setTodoList(todos);
+    setDonorList(donors);
     setHasBeenInitialized(true);
     isInitializingRef.current = false;
   };
 
   const setup = async () => {
-    setWorkerIsBusy(true);
-    if (!todoListWorkerClient) {
-      setLogMessages((prev) => [
-        ...prev,
-        'No worker client found, creating new one...',
-      ]);
-      const workerClient = new TodoListWorkerClient();
-      setTodoListWorkerClient(workerClient);
-      setLogMessages((prev) => [...prev, 'Worker client created']);
-      isInitializingRef.current = true;
-      await initializeWorker(workerClient);
-    } else if (!hasBeenInitialized && !isInitializingRef.current) {
-      isInitializingRef.current = true;
-      await initializeWorker(todoListWorkerClient);
-    }
-    setWorkerIsBusy(false);
+    await withBusyWorker(async () => {
+      if (!fundraiserWorkerClient) {
+        setLogMessages((prev) => [
+          ...prev,
+          'No worker client found, creating new one...',
+        ]);
+        const workerClient = new FundraiserWorkerClient();
+        setFundraiserWorkerClient(workerClient);
+        setLogMessages((prev) => [...prev, 'Worker client created']);
+        isInitializingRef.current = true;
+        await initializeWorker(workerClient);
+      } else if (!hasBeenInitialized && !isInitializingRef.current) {
+        isInitializingRef.current = true;
+        await initializeWorker(fundraiserWorkerClient);
+      }
+    });
   };
 
   useEffect(() => {
     setup();
-  }, [hasBeenInitialized, todoListWorkerClient]);
+  }, [hasBeenInitialized, fundraiserWorkerClient]);
 
   useEffect(() => {
     if (logContainerRef.current) {
@@ -73,70 +99,71 @@ export default function Home() {
     }
   }, [logMessages]);
 
-  const addTodo = async () => {
-    setNewTodosQueue([...newTodosQueue, newTodo]);
+  const donate = () => {
+    withBusyWorker(
+      async () =>
+        await fundraiserWorkerClient?.donate(selectedPersona, {
+          address: selectedPersona.x,
+          amount: amountToDonate,
+        }),
+    );
+
     setLogMessages((prev) => [
       ...prev,
-      `Added todo to pending queue: ${newTodo.substring(0, 10)}...`,
+      `${personaMap.get(selectedPersona)} (${selectedPersona.toBase58().substring(0, 10)}...): donated ${amountToDonate}.`,
     ]);
-    setNewTodo('');
+    setAmountToDonate(0n);
   };
 
-  const resolveTodosQueue = async () => {
-    setLogMessages((prev) => [...prev, 'Proving pending todos queue...']);
-    setWorkerIsBusy(true);
-    const timeStart = Date.now();
-    await todoListWorkerClient!.addTodos(newTodosQueue);
-    const todos = await todoListWorkerClient!.getTodos();
-    setTodoList(todos);
-    setWorkerIsBusy(false);
+  const claim = () => {
+    withBusyWorker(
+      async () => await fundraiserWorkerClient?.claim(selectedPersona),
+    );
+
     setLogMessages((prev) => [
       ...prev,
-      `Todos queue proven in ${Date.now() - timeStart}ms!`,
+      `${personaMap.get(selectedPersona)} (${selectedPersona.toBase58().substring(0, 10)}...): attempted claim.`,
     ]);
-    setNewTodosQueue([]);
   };
 
-  const completeTodo = async (index: number) => {
-    if (!todoList) return;
+  const reclaim = () => {
+    withBusyWorker(
+      async () => await fundraiserWorkerClient?.refund(selectedPersona),
+    );
 
     setLogMessages((prev) => [
       ...prev,
-      `Marking todo ${index} for completion...`,
+      `${personaMap.get(selectedPersona)} (${selectedPersona.toBase58().substring(0, 10)}...): attempted refund.`,
     ]);
-    setPendingCompleteTodosQueue([...pendingCompleteTodosQueue, index]);
-  };
-
-  const resolveCompleteTodosQueue = async () => {
-    setLogMessages((prev) => [
-      ...prev,
-      'Proving pending complete todos queue...',
-    ]);
-    setWorkerIsBusy(true);
-    const timeStart = Date.now();
-    await todoListWorkerClient!.completeTodos(pendingCompleteTodosQueue);
-    const todos = await todoListWorkerClient!.getTodos();
-    setTodoList(todos);
-    setWorkerIsBusy(false);
-    setLogMessages((prev) => [
-      ...prev,
-      `Complete todos queue proven in ${Date.now() - timeStart}ms!`,
-    ]);
-    setPendingCompleteTodosQueue([]);
   };
 
   return (
     <div>
-      <KawaiiNav donors={['1', '2', '3']} />
+      <KawaiiNav
+        setSelected={setSelectedPersona}
+        deployer={deployer}
+        beneficiary={beneficiary}
+        donors={[matt, katie, christian]}
+        personaMap={personaMap}
+      />
       <KawaiiParticles />
       <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-8 font-[family-name:var(--font-geist-sans)]">
         <main className="flex flex-col gap-x-12 gap-y-40 row-start-2 items-center w-3/4">
           <div className="flex flex-col gap-4 items-center justify-center text-center">
             <h1 className="text-4xl font-bold">
-              Todo List with o1js and Next JS!
+              Fundraiser with o1js and Next JS!
             </h1>
-            <App goal={100} raised={40}></App>
-            <div class="grid grid-cols-4 gap-4 pt-4">
+            <App
+              goal={100n}
+              raised={40n}
+              onDonate={donate}
+              onClaim={claim}
+              onReclaim={reclaim}
+              claimant={beneficiary}
+              onAmountToDonateChanged={setAmountToDonate}
+              buttonsActive={!workerIsBusy && hasBeenInitialized}
+            />
+            <div className="grid grid-cols-4 gap-4 pt-4">
               <KawaiiCard
                 emoji="📚"
                 href="https://docs.minaprotocol.com/zkapps"
@@ -182,7 +209,7 @@ export default function Home() {
               </ul>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          {/* <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-4">
               <div className="py-8">
                 <PendingTodosQueue
@@ -224,7 +251,7 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div>
+          <div>
               {hasBeenInitialized ? (
                 todoList !== null && (
                   <ul className="flex flex-col gap-2">
@@ -240,7 +267,7 @@ export default function Home() {
                 <div>Waiting for zk circuit to compile...</div>
               )}
             </div>
-          </div>
+      </div> */}
         </main>
       </div>
     </div>
